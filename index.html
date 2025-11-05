@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>📍 Location Spoofer - モバイル対応</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 10px;
+      overflow-x: hidden;
+    }
+
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      overflow: hidden;
+    }
+
+    .header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 20px;
+      text-align: center;
+    }
+
+    .header h1 {
+      font-size: 24px;
+      margin-bottom: 5px;
+    }
+
+    .header p {
+      font-size: 14px;
+      opacity: 0.9;
+    }
+
+    #map {
+      width: 100%;
+      height: 300px;
+      position: relative;
+    }
+
+    .info-panel {
+      padding: 15px;
+      background: #f8f9fa;
+      border-bottom: 1px solid #e9ecef;
+    }
+
+    .info-item {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 10px;
+      font-size: 14px;
+      align-items: center;
+    }
+
+    .info-item:last-child {
+      margin-bottom: 0;
+    }
+
+    .info-label {
+      font-weight: 600;
+      color: #495057;
+    }
+
+    .info-value {
+      color: #667eea;
+      font-weight: 500;
+      font-family: 'Courier New', monospace;
+    }
+
+    .status-badge {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .status-active {
+      background: #d4edda;
+      color: #155724;
+    }
+
+    .status-inactive {
+      background: #f8d7da;
+      color: #721c24;
+    }
+
+    .control-panel {
+      padding: 15px;
+    }
+
+    .section-title {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 12px;
+      color: #333;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .speed-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      margin-bottom: 15px;
+    }
+
+    .speed-btn {
+      padding: 12px;
+      border: 2px solid #e9ecef;
+      background: white;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-align: center;
+      font-size: 13px;
+      font-weight: 500;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .speed-btn:active {
+      transform: scale(0.95);
+    }
+
+    .speed-btn.active {
+      border-color: #667eea;
+      background: #667eea;
+      color: white;
+    }
+
+    .speed-icon {
+      font-size: 24px;
+    }
+
+    .custom-speed {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 15px;
+    }
+
+    .custom-speed input {
+      flex: 1;
+      padding: 12px;
+      border: 2px solid #e9ecef;
+      border-radius: 12px;
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .custom-speed input:focus {
+      border-color: #667eea;
+    }
+
+    .custom-speed button {
+      padding: 12px 20px;
+      background: #667eea;
+      color: white;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 14px;
+      transition: all 0.2s;
+    }
+
+    .custom-speed button:active {
+      transform: scale(0.95);
+    }
+
+    .action-buttons {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-bottom: 15px;
+    }
+
+    .btn {
+      padding: 14px;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      transition: all 0.2s;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .btn:active {
+      transform: scale(0.95);
+    }
+
+    .btn-icon {
+      font-size: 20px;
+    }
+
+    .btn-success {
+      background: #28a745;
+      color: white;
+    }
+
+    .btn-success:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+
+    .btn-danger {
+      background: #dc3545;
+      color: white;
+    }
+
+    .btn-danger:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+
+    .btn-warning {
+      background: #ffc107;
+      color: #333;
+    }
+
+    .instructions {
+      background: #fff3cd;
+      padding: 15px;
+      border-radius: 12px;
+      border-left: 4px solid #ffc107;
+      margin-bottom: 15px;
+    }
+
+    .instructions h3 {
+      color: #856404;
+      margin-bottom: 10px;
+      font-size: 14px;
+    }
+
+    .instructions ol {
+      margin-left: 20px;
+      font-size: 13px;
+      color: #856404;
+    }
+
+    .instructions li {
+      margin-bottom: 6px;
+    }
+
+    .warning {
+      margin-top: 10px;
+      font-size: 12px;
+      color: #d32f2f;
+      font-weight: bold;
+    }
+
+    .test-section {
+      padding: 15px;
+      background: #e7f3ff;
+      border-top: 1px solid #d1e7ff;
+    }
+
+    .test-btn {
+      width: 100%;
+      padding: 14px;
+      background: #2196F3;
+      color: white;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+
+    .test-btn:active {
+      transform: scale(0.98);
+    }
+
+    .test-result {
+      margin-top: 10px;
+      padding: 12px;
+      background: white;
+      border-radius: 8px;
+      font-size: 13px;
+      font-family: 'Courier New', monospace;
+      max-height: 200px;
+      overflow-y: auto;
+      display: none;
+    }
+
+    .test-result.show {
+      display: block;
+    }
+
+    /* ローディングアニメーション */
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .loading {
+      display: inline-block;
+      animation: spin 1s linear infinite;
+    }
+
+    /* モバイル最適化 */
+    @media (max-width: 480px) {
+      body {
+        padding: 0;
+      }
+
+      .container {
+        border-radius: 0;
+      }
+
+      .speed-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .action-buttons {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>📍 Location Spoofer</h1>
+      <p>モバイル対応版 - 開発・テスト用</p>
+    </div>
+
+    <!-- 地図 -->
+    <div id="map"></div>
+
+    <!-- 現在の状態 -->
+    <div class="info-panel">
+      <div class="info-item">
+        <span class="info-label">状態:</span>
+        <span class="status-badge status-inactive" id="status">停止中</span>
+      </div>
+      <div class="info-item">
+        <span class="info-label">現在位置:</span>
+        <span class="info-value" id="current-position">未設定</span>
+      </div>
+      <div class="info-item">
+        <span class="info-label">速度:</span>
+        <span class="info-value"><span id="current-speed">0</span> km/h</span>
+      </div>
+      <div class="info-item">
+        <span class="info-label">ポイント数:</span>
+        <span class="info-value" id="waypoint-count">0</span>
+      </div>
+    </div>
+
+    <!-- コントロールパネル -->
+    <div class="control-panel">
+      <!-- 速度設定 -->
+      <div class="section-title">⚡ 速度設定</div>
+      <div class="speed-grid">
+        <button class="speed-btn" data-speed="5">
+          <span class="speed-icon">🚶</span>
+          <span>徒歩 5km/h</span>
+        </button>
+        <button class="speed-btn" data-speed="15">
+          <span class="speed-icon">🚴</span>
+          <span>自転車 15km/h</span>
+        </button>
+        <button class="speed-btn" data-speed="60">
+          <span class="speed-icon">🚗</span>
+          <span>車 60km/h</span>
+        </button>
+        <button class="speed-btn" data-speed="200">
+          <span class="speed-icon">🚄</span>
+          <span>新幹線 200km/h</span>
+        </button>
+      </div>
+
+      <div class="custom-speed">
+        <input type="number" id="custom-speed" min="1" max="500" value="60" placeholder="カスタム速度">
+        <button id="set-custom-speed">設定</button>
+      </div>
+
+      <!-- 操作ボタン -->
+      <div class="section-title">🎮 操作</div>
+      <div class="action-buttons">
+        <button id="start-btn" class="btn btn-success">
+          <span class="btn-icon">▶️</span>
+          <span>開始</span>
+        </button>
+        <button id="stop-btn" class="btn btn-danger" disabled>
+          <span class="btn-icon">⏹️</span>
+          <span>停止</span>
+        </button>
+        <button id="clear-btn" class="btn btn-warning">
+          <span class="btn-icon">🗑️</span>
+          <span>クリア</span>
+        </button>
+      </div>
+
+      <!-- 使い方 -->
+      <div class="instructions">
+        <h3>📖 使い方</h3>
+        <ol>
+          <li>地図をタップしてルートを設定</li>
+          <li>速度を選択</li>
+          <li>「開始」ボタンをタップ</li>
+          <li>下の「位置情報をテスト」で確認</li>
+        </ol>
+        <p class="warning">⚠️ 開発・テスト用途でのみ使用してください</p>
+      </div>
+    </div>
+
+    <!-- テストセクション -->
+    <div class="test-section">
+      <button class="test-btn" id="test-btn">📍 位置情報をテスト</button>
+      <div class="test-result" id="test-result"></div>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    // グローバル変数
+    let map;
+    let currentMarker;
+    let waypointMarkers = [];
+    let routeLine;
+    let waypoints = [];
+    let currentSpeed = 60;
+    let isRunning = false;
+    let currentPosition = { lat: 35.6812, lng: 139.7671 };
+    let currentWaypointIndex = 0;
+    let intervalId = null;
+
+    // 地図の初期化
+    function initMap() {
+      map = L.map('map').setView([35.6812, 139.7671], 13);
+      
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors',
+        maxZoom: 19
+      }).addTo(map);
+
+      // タップでウェイポイント追加
+      map.on('click', function(e) {
+        if (!isRunning) {
+          addWaypoint(e.latlng.lat, e.latlng.lng);
+        }
+      });
+
+      // 現在位置マーカー（青）
+      currentMarker = L.circleMarker([35.6812, 139.7671], {
+        radius: 8,
+        fillColor: '#2196F3',
+        color: '#fff',
+        weight: 2,
+        opacity: 1,
+        fillOpacity: 0.8
+      }).addTo(map);
+
+      // ルート線
+      routeLine = L.polyline([], {
+        color: '#667eea',
+        weight: 3,
+        opacity: 0.7
+      }).addTo(map);
+    }
+
+    // ウェイポイント追加
+    function addWaypoint(lat, lng) {
+      waypoints.push({ lat, lng });
+
+      // マーカー追加（赤）
+      const marker = L.circleMarker([lat, lng], {
+        radius: 6,
+        fillColor: '#dc3545',
+        color: '#fff',
+        weight: 2,
+        opacity: 1,
+        fillOpacity: 0.8
+      }).addTo(map);
+
+      const label = L.marker([lat, lng], {
+        icon: L.divIcon({
+          className: 'waypoint-label',
+          html: `<div style="background: #dc3545; color: white; border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold;">${waypoints.length}</div>`,
+          iconSize: [24, 24]
+        })
+      }).addTo(map);
+
+      waypointMarkers.push({ marker, label });
+      routeLine.setLatLngs(waypoints.map(wp => [wp.lat, wp.lng]));
+      
+      updateUI();
+    }
+
+    // 速度設定
+    function setSpeed(speed) {
+      currentSpeed = speed;
+      document.getElementById('current-speed').textContent = speed;
+      
+      // アクティブ状態を更新
+      document.querySelectorAll('.speed-btn').forEach(btn => {
+        btn.classList.remove('active');
+      });
+    }
+
+    // 移動開始
+    function startMovement() {
+      if (waypoints.length < 2) {
+        alert('最低2つのポイントをタップしてください');
+        return;
+      }
+
+      isRunning = true;
+      currentWaypointIndex = 0;
+      currentPosition = waypoints[0];
+      
+      // Geolocation APIをオーバーライド
+      overrideGeolocation();
+      
+      intervalId = setInterval(() => {
+        updatePosition();
+        updateMarker();
+      }, 1000);
+
+      updateUI();
+    }
+
+    // 移動停止
+    function stopMovement() {
+      isRunning = false;
+      if (intervalId) {
+        clearInterval(intervalId);
+        intervalId = null;
+      }
+      updateUI();
+    }
+
+    // 位置更新
+    function updatePosition() {
+      if (currentWaypointIndex >= waypoints.length - 1) {
+        stopMovement();
+        return;
+      }
+
+      const start = currentPosition;
+      const end = waypoints[currentWaypointIndex + 1];
+      const distance = calculateDistance(start.lat, start.lng, end.lat, end.lng);
+      const distancePerSecond = (currentSpeed * 1000) / 3600;
+
+      if (distance <= distancePerSecond) {
+        currentPosition = end;
+        currentWaypointIndex++;
+      } else {
+        const ratio = distancePerSecond / distance;
+        currentPosition = {
+          lat: start.lat + (end.lat - start.lat) * ratio,
+          lng: start.lng + (end.lng - start.lng) * ratio
+        };
+      }
+    }
+
+    // マーカー更新
+    function updateMarker() {
+      currentMarker.setLatLng([currentPosition.lat, currentPosition.lng]);
+      document.getElementById('current-position').textContent = 
+        `${currentPosition.lat.toFixed(6)}, ${currentPosition.lng.toFixed(6)}`;
+    }
+
+    // 距離計算
+    function calculateDistance(lat1, lng1, lat2, lng2) {
+      const R = 6371000;
+      const dLat = toRad(lat2 - lat1);
+      const dLng = toRad(lng2 - lng1);
+      const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+                Math.sin(dLng / 2) * Math.sin(dLng / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      return R * c;
+    }
+
+    function toRad(degrees) {
+      return degrees * Math.PI / 180;
+    }
+
+    // Geolocation APIをオーバーライド
+    function overrideGeolocation() {
+      const originalGetCurrentPosition = navigator.geolocation.getCurrentPosition.bind(navigator.geolocation);
+      const originalWatchPosition = navigator.geolocation.watchPosition.bind(navigator.geolocation);
+
+      navigator.geolocation.getCurrentPosition = function(success, error, options) {
+        if (isRunning) {
+          const position = {
+            coords: {
+              latitude: currentPosition.lat,
+              longitude: currentPosition.lng,
+              altitude: null,
+              accuracy: 10,
+              altitudeAccuracy: null,
+              heading: null,
+              speed: currentSpeed / 3.6
+            },
+            timestamp: Date.now()
+          };
+          if (success) setTimeout(() => success(position), 0);
+        } else {
+          originalGetCurrentPosition(success, error, options);
+        }
+      };
+
+      navigator.geolocation.watchPosition = function(success, error, options) {
+        if (isRunning) {
+          const watchId = setInterval(() => {
+            if (success) {
+              const position = {
+                coords: {
+                  latitude: currentPosition.lat,
+                  longitude: currentPosition.lng,
+                  altitude: null,
+                  accuracy: 10,
+                  altitudeAccuracy: null,
+                  heading: null,
+                  speed: currentSpeed / 3.6
+                },
+                timestamp: Date.now()
+              };
+              success(position);
+            }
+          }, 1000);
+          return watchId;
+        } else {
+          return originalWatchPosition(success, error, options);
+        }
+      };
+    }
+
+    // ルートクリア
+    function clearRoute() {
+      waypointMarkers.forEach(({ marker, label }) => {
+        map.removeLayer(marker);
+        map.removeLayer(label);
+      });
+      waypointMarkers = [];
+      waypoints = [];
+      routeLine.setLatLngs([]);
+      stopMovement();
+      updateUI();
+    }
+
+    // UI更新
+    function updateUI() {
+      const status = document.getElementById('status');
+      const startBtn = document.getElementById('start-btn');
+      const stopBtn = document.getElementById('stop-btn');
+
+      if (isRunning) {
+        status.textContent = '動作中';
+        status.className = 'status-badge status-active';
+        startBtn.disabled = true;
+        stopBtn.disabled = false;
+      } else {
+        status.textContent = '停止中';
+        status.className = 'status-badge status-inactive';
+        startBtn.disabled = false;
+        stopBtn.disabled = true;
+      }
+
+      document.getElementById('waypoint-count').textContent = waypoints.length;
+      document.getElementById('current-speed').textContent = currentSpeed;
+    }
+
+    // テスト実行
+    function testGeolocation() {
+      const result = document.getElementById('test-result');
+      result.innerHTML = '<div class="loading">⏳</div> 位置情報を取得中...';
+      result.classList.add('show');
+
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          result.innerHTML = `
+<strong>✅ 成功！</strong><br><br>
+緯度: ${pos.coords.latitude.toFixed(6)}<br>
+経度: ${pos.coords.longitude.toFixed(6)}<br>
+精度: ${pos.coords.accuracy}m<br>
+速度: ${pos.coords.speed ? (pos.coords.speed * 3.6).toFixed(1) : 0} km/h<br>
+タイムスタンプ: ${new Date(pos.timestamp).toLocaleTimeString('ja-JP')}<br><br>
+${isRunning ? '<strong>🎉 偽装位置が返されました！</strong>' : '<strong>⚠️ 現在は実際の位置です</strong>'}
+          `;
+        },
+        (err) => {
+          result.innerHTML = `<strong>❌ エラー</strong><br>${err.message}`;
+        }
+      );
+    }
+
+    // イベントリスナー設定
+    document.addEventListener('DOMContentLoaded', () => {
+      initMap();
+      overrideGeolocation();
+
+      // 速度プリセットボタン
+      document.querySelectorAll('.speed-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+          const speed = parseInt(this.dataset.speed);
+          setSpeed(speed);
+          this.classList.add('active');
+        });
+      });
+
+      // カスタム速度
+      document.getElementById('set-custom-speed').addEventListener('click', () => {
+        const speed = parseInt(document.getElementById('custom-speed').value);
+        if (speed >= 1 && speed <= 500) {
+          setSpeed(speed);
+        } else {
+          alert('速度は1〜500 km/hで設定してください');
+        }
+      });
+
+      // 操作ボタン
+      document.getElementById('start-btn').addEventListener('click', startMovement);
+      document.getElementById('stop-btn').addEventListener('click', stopMovement);
+      document.getElementById('clear-btn').addEventListener('click', () => {
+        if (confirm('ルートをクリアしますか？')) {
+          clearRoute();
+        }
+      });
+
+      // テストボタン
+      document.getElementById('test-btn').addEventListener('click', testGeolocation);
+
+      updateUI();
+    });
+  </script>
+</body>
+</html>
