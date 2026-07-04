@@ -449,11 +449,13 @@
     let currentPosition = { lat: 35.6812, lng: 139.7671 };
     let currentWaypointIndex = 0;
     let intervalId = null;
+    let geoOverrideInstalled = false;
+    let activeWatchIds = new Set();
 
     // 地図の初期化
     function initMap() {
       map = L.map('map').setView([35.6812, 139.7671], 13);
-      
+
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap contributors',
         maxZoom: 19
@@ -482,6 +484,10 @@
         weight: 3,
         opacity: 0.7
       }).addTo(map);
+
+      // モバイルでタイル読み込み後にサイズを再計算（テーブル/フレックス内での高さ崩れ対策）
+      setTimeout(() => map.invalidateSize(), 200);
+      window.addEventListener('resize', () => map.invalidateSize());
     }
 
     // ウェイポイント追加
@@ -508,7 +514,7 @@
 
       waypointMarkers.push({ marker, label });
       routeLine.setLatLngs(waypoints.map(wp => [wp.lat, wp.lng]));
-      
+
       updateUI();
     }
 
@@ -516,10 +522,10 @@
     function setSpeed(speed) {
       currentSpeed = speed;
       document.getElementById('current-speed').textContent = speed;
-      
+
       // アクティブ状態を更新
       document.querySelectorAll('.speed-btn').forEach(btn => {
-        btn.classList.remove('active');
+        btn.classList.toggle('active', parseInt(btn.dataset.speed) === speed);
       });
     }
 
@@ -532,11 +538,13 @@
 
       isRunning = true;
       currentWaypointIndex = 0;
-      currentPosition = waypoints[0];
-      
-      // Geolocation APIをオーバーライド
-      overrideGeolocation();
-      
+      currentPosition = { lat: waypoints[0].lat, lng: waypoints[0].lng };
+
+      updateMarker();
+
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
       intervalId = setInterval(() => {
         updatePosition();
         updateMarker();
@@ -568,7 +576,7 @@
       const distancePerSecond = (currentSpeed * 1000) / 3600;
 
       if (distance <= distancePerSecond) {
-        currentPosition = end;
+        currentPosition = { lat: end.lat, lng: end.lng };
         currentWaypointIndex++;
       } else {
         const ratio = distancePerSecond / distance;
@@ -582,7 +590,7 @@
     // マーカー更新
     function updateMarker() {
       currentMarker.setLatLng([currentPosition.lat, currentPosition.lng]);
-      document.getElementById('current-position').textContent = 
+      document.getElementById('current-position').textContent =
         `${currentPosition.lat.toFixed(6)}, ${currentPosition.lng.toFixed(6)}`;
     }
 
@@ -602,10 +610,17 @@
       return degrees * Math.PI / 180;
     }
 
-    // Geolocation APIをオーバーライド
+    // Geolocation APIをオーバーライド（ページ読み込み時に一度だけ実行）
     function overrideGeolocation() {
+      if (geoOverrideInstalled) return; // 二重上書き防止
+      if (!('geolocation' in navigator)) {
+        console.warn('このブラウザ/コンテキストでは navigator.geolocation が利用できません（HTTPS/localhost が必要です）。');
+        return;
+      }
+
       const originalGetCurrentPosition = navigator.geolocation.getCurrentPosition.bind(navigator.geolocation);
       const originalWatchPosition = navigator.geolocation.watchPosition.bind(navigator.geolocation);
+      const originalClearWatch = navigator.geolocation.clearWatch.bind(navigator.geolocation);
 
       navigator.geolocation.getCurrentPosition = function(success, error, options) {
         if (isRunning) {
@@ -646,11 +661,23 @@
               success(position);
             }
           }, 1000);
+          activeWatchIds.add(watchId);
           return watchId;
         } else {
           return originalWatchPosition(success, error, options);
         }
       };
+
+      navigator.geolocation.clearWatch = function(id) {
+        if (activeWatchIds.has(id)) {
+          clearInterval(id);
+          activeWatchIds.delete(id);
+        } else {
+          originalClearWatch(id);
+        }
+      };
+
+      geoOverrideInstalled = true;
     }
 
     // ルートクリア
@@ -694,6 +721,11 @@
       result.innerHTML = '<div class="loading">⏳</div> 位置情報を取得中...';
       result.classList.add('show');
 
+      if (!('geolocation' in navigator)) {
+        result.innerHTML = '<strong>❌ エラー</strong><br>このブラウザ/コンテキストでは位置情報APIが利用できません（HTTPS接続が必要です）。';
+        return;
+      }
+
       navigator.geolocation.getCurrentPosition(
         (pos) => {
           result.innerHTML = `
@@ -708,7 +740,8 @@ ${isRunning ? '<strong>🎉 偽装位置が返されました！</strong>' : '<s
         },
         (err) => {
           result.innerHTML = `<strong>❌ エラー</strong><br>${err.message}`;
-        }
+        },
+        { timeout: 10000 }
       );
     }
 
@@ -717,12 +750,14 @@ ${isRunning ? '<strong>🎉 偽装位置が返されました！</strong>' : '<s
       initMap();
       overrideGeolocation();
 
-      // 速度プリセットボタン
+      // 速度プリセットボタン（初期値 60km/h をハイライト）
       document.querySelectorAll('.speed-btn').forEach(btn => {
+        if (parseInt(btn.dataset.speed) === currentSpeed) {
+          btn.classList.add('active');
+        }
         btn.addEventListener('click', function() {
           const speed = parseInt(this.dataset.speed);
           setSpeed(speed);
-          this.classList.add('active');
         });
       });
 
